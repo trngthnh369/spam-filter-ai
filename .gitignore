@@ -1,0 +1,139 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.log
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Jupyter Notebook
+.ipynb_checkpoints
+notebooks/.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Model artifacts and data
+artifacts/*.bin
+artifacts/*.json
+data/*.csv
+data/*.parquet
+models/
+*.h5
+*.pkl
+*.pt
+*.pth
+*.onnx
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# OS
+.DS_Store
+Thumbs.db
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# Node.js / Frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.next/
+out/
+.cache/
+dist/
+.turbo/
+.vercel
+*.tsbuildinfo
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+coverage/
+*.cover
+.hypothesis/
+
+# Docker
+*.tar
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.cache
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets
+*.pem
+*.key
+secrets/
+
+# Large files
+*.zip
+*.tar.gz
+*.rar
+
+# Generated documentation
+docs/_build/
+site/
+
+# IDEs
+*.sublime-project
+*.sublime-workspace
+
+# Keep important directories
+!artifacts/.gitkeep
+!data/.gitkeep
+!logs/.gitkeep
+
+.github/

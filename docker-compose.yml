@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: spam-filter-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./artifacts:/app/artifacts
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MODEL_NAME=intfloat/multilingual-e5-base
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:8000
+    restart: unless-stopped
+    networks:
+      - spam-filter-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: spam-filter-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - spam-filter-network
+
+networks:
+  spam-filter-network:
+    driver: bridge
+
+volumes:
+  artifacts:
+  data:
