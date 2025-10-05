@@ -5,6 +5,10 @@ Application configuration settings.
 
 from pydantic_settings import BaseSettings
 from typing import List
+from pathlib import Path
+
+# Get the absolute path to the project root
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 
 
 class Settings(BaseSettings):
@@ -23,11 +27,12 @@ class Settings(BaseSettings):
     ]
     
     # Model paths
+    ARTIFACTS_PATH: str = str(PROJECT_ROOT / "scripts" / "artifacts")
     MODEL_NAME: str = "intfloat/multilingual-e5-base"
-    FAISS_INDEX_PATH: str = "artifacts/faiss_index.bin"
-    METADATA_PATH: str = "artifacts/train_metadata.json"
-    CLASS_WEIGHTS_PATH: str = "artifacts/class_weights.json"
-    CONFIG_PATH: str =  "artifacts/model_config.json"
+    FAISS_INDEX_PATH: str = str(Path(ARTIFACTS_PATH) / "faiss_index.bin")
+    METADATA_PATH: str = str(Path(ARTIFACTS_PATH) / "train_metadata.json")
+    CLASS_WEIGHTS_PATH: str = str(Path(ARTIFACTS_PATH) / "class_weights.json")
+    CONFIG_PATH: str = str(Path(ARTIFACTS_PATH) / "model_config.json")
 
     # Model parameters
     DEFAULT_K: int = 5

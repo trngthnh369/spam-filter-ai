@@ -1,12 +1,15 @@
 """
-Data augmentation module for spam classification
-Includes hard example generation and synonym replacement
+Enhanced data augmentation module for spam classification
+Includes hard example generation, synonym replacement, back-translation, and smart imbalance handling
 """
 
+import pandas as pd
 import random
 import nltk
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 import logging
+from collections import Counter
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,11 +26,14 @@ except:
 
     
 class DataAugmentor:
-    """Data augmentation for spam/ham classification"""
+    """Enhanced data augmentation for spam/ham classification with imbalance handling"""
     
-    def __init__(self):
+    def __init__(self, data_dir: str = "data"):
+        self.data_dir = Path(data_dir)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
         self.spam_phrase_groups = self._init_spam_phrases()
         self.ham_phrase_groups = self._init_ham_phrases()
+        self.spam_templates = self._init_spam_templates()
         
     def _init_spam_phrases(self) -> List[List[str]]:
         """Initialize spam phrase groups for hard example generation"""
@@ -38,7 +44,9 @@ class DataAugmentor:
             "approved for a $500 credit", "quick $300 refund if you confirm",
             "your account gets $100 instantly after confirmation",
             "instant $400 transfer if you reply YES today",
-            "exclusive $600 grant approved for you"
+            "exclusive $600 grant approved for you",
+            "claim your $1000 reward now", "receive $750 cashback immediately",
+            "get $250 bonus for signing up", "win up to $5000 in prizes"
         ]
         
         promotion_phrases = [
@@ -46,7 +54,9 @@ class DataAugmentor:
             "exclusive deal just for you", "hot sale up to 80% off",
             "flash sale starting in 2 hours", "new collection, free shipping worldwide",
             "best price guaranteed for early birds", "special discount coupon",
-            "reserve now and get extra 20% off", "only 3 items left, order now!"
+            "reserve now and get extra 20% off", "only 3 items left, order now!",
+            "70% OFF clearance sale", "mega discount today only",
+            "last chance to save big", "don't miss out on this deal"
         ]
         
         lottery_phrases = [
@@ -55,7 +65,9 @@ class DataAugmentor:
             "claim your $500 Amazon voucher now",
             "winner! reply to confirm your prize",
             "spin the wheel to win exciting gifts",
-            "lucky draw winner – act fast"
+            "lucky draw winner – act fast",
+            "you've been chosen for a special reward",
+            "claim your free MacBook now"
         ]
         
         scam_alert_phrases = [
@@ -64,14 +76,17 @@ class DataAugmentor:
             "security update required immediately",
             "urgent: payment failed, update details now",
             "verify your identity to avoid account closure",
-            "bank alert: confirm transaction or account locked"
+            "bank alert: confirm transaction or account locked",
+            "suspicious activity detected on your account",
+            "action required: verify within 24 hours"
         ]
         
         call_to_action_phrases = [
             "click here to confirm", "reply YES to activate bonus",
             "register before midnight and win", "tap now to claim your reward",
             "sign up today, limited seats", "confirm immediately to proceed",
-            "act fast, offer expires soon"
+            "act fast, offer expires soon", "click link to verify",
+            "respond now to claim", "visit this link immediately"
         ]
         
         social_engineering_phrases = [
@@ -79,23 +94,33 @@ class DataAugmentor:
             "hi mom, send money asap, phone broke",
             "boss asked me to buy 3 gift cards urgently",
             "john, can you transfer $300 now, emergency",
-            "friend, please help me with $200 loan"
+            "friend, please help me with $200 loan",
+            "urgent family emergency, need cash now",
+            "stranded abroad, need money for ticket home"
         ]
         
         obfuscated_phrases = [
             "Cl!ck h3re t0 w1n fr€e iPh0ne", "G€t y0ur r3fund n0w!!!",
             "L!mited 0ff3r: Fr33 $$$ r3ward", "C@shb@ck av@il@ble t0d@y",
-            "W!n b!g pr!ze, act f@st"
+            "W!n b!g pr!ze, act f@st", "FR€€ M0N€Y W@!T!NG",
+            "V!@GR@ d!sc0unt 50% 0FF", "Earn $$$ from h0me"
+        ]
+        
+        vietnamese_spam = [
+            "trúng thưởng 10 triệu đồng", "khuyến mãi đặc biệt hôm nay",
+            "nhận ngay 500k miễn phí", "cơ hội kiếm tiền dễ dàng",
+            "giảm giá 80% chỉ hôm nay", "click vào link nhận quà",
+            "xác nhận ngay để nhận thưởng", "ưu đãi độc quyền cho bạn"
         ]
         
         return [
             financial_phrases, promotion_phrases, lottery_phrases,
             scam_alert_phrases, call_to_action_phrases,
-            social_engineering_phrases, obfuscated_phrases
+            social_engineering_phrases, obfuscated_phrases, vietnamese_spam
         ]
     
     def _init_ham_phrases(self) -> List[List[str]]:
-        """Initialize ham phrase groups (look like spam but legitimate)"""
+        """Initialize ham phrase groups"""
         
         financial_phrases = [
             "I got $100 cashback yesterday", "The bank refunded me $200 already",
@@ -113,47 +138,55 @@ class DataAugmentor:
             "Reserved early and saved 20%"
         ]
         
-        lottery_phrases = [
-            "I actually won a $1000 voucher at the mall",
-            "I got a free iPhone from the lucky draw",
-            "Claimed my $500 Amazon voucher legit",
-            "Won a prize, just showed my ticket"
-        ]
-        
-        scam_alert_phrases = [
-            "I got unusual login alert, but it was me",
-            "Reset my password after warning, fine now",
-            "Got security update mail, confirmed it's real",
-            "Payment failed once, updated and ok now"
-        ]
-        
-        call_to_action_phrases = [
-            "I clicked to confirm and it worked",
-            "Replied YES, bonus legit",
-            "Registered before midnight, no scam",
-            "Tapped link, claimed reward legit"
-        ]
-        
-        social_engineering_phrases = [
-            "Mom, don't worry I sent you $500 hospital bill already",
-            "Hi mom, phone broke but friend helped",
-            "Boss asked me to buy gift cards for office, already did",
-            "John, I transferred $300, check it"
-        ]
-        
-        obfuscated_phrases = [
-            "Clicked h3re to win fr€e gift, real promo",
-            "Got r3fund n0w!!! 100% legit",
-            "Fr33 reward worked, tried it",
-            "C@shb@ck real, used today"
-        ]
-        
+        return [financial_phrases, promotion_phrases]
+    
+    def _init_spam_templates(self) -> List[str]:
+        """Templates for generating synthetic spam"""
         return [
-            financial_phrases, promotion_phrases, lottery_phrases,
-            scam_alert_phrases, call_to_action_phrases,
-            social_engineering_phrases, obfuscated_phrases
+            "URGENT: {action} to claim your {reward}!",
+            "Congratulations! You've won {reward}. {action} now!",
+            "LIMITED TIME: {reward} available. {action} immediately!",
+            "{action} within 24 hours to receive {reward}",
+            "ALERT: {action} required or your account will be {consequence}",
+            "Special offer: {reward} if you {action} today!",
+            "Don't miss out! {action} to get {reward}",
+            "WINNER: You've been selected for {reward}. {action}!",
+            "🎉 {reward} waiting for you! {action} to claim",
+            "LAST CHANCE: {action} before midnight to get {reward}"
         ]
         
+    def generate_synthetic_spam(self, n: int) -> List[str]:
+        """Generate synthetic spam messages from templates"""
+        
+        actions = [
+            "Click here", "Reply YES", "Confirm now", "Verify identity",
+            "Call us", "Visit link", "Register", "Sign up", "Respond immediately",
+            "Tap here", "Download app", "Enter details", "Update information"
+        ]
+        
+        rewards = [
+            "$1000 prize", "free iPhone", "cash reward", "$500 voucher",
+            "exclusive gift", "special bonus", "luxury vacation", "cashback",
+            "discount coupon", "free trial", "premium access", "winning ticket"
+        ]
+        
+        consequences = [
+            "suspended", "closed", "blocked", "restricted", "locked",
+            "terminated", "deactivated", "frozen"
+        ]
+        
+        generated = []
+        for _ in range(n):
+            template = random.choice(self.spam_templates)
+            msg = template.format(
+                action=random.choice(actions),
+                reward=random.choice(rewards),
+                consequence=random.choice(consequences)
+            )
+            generated.append(msg)
+        
+        return generated
+    
     def generate_hard_examples(
         self,
         base_texts: List[str],
@@ -172,15 +205,54 @@ class DataAugmentor:
                 insert_group = random.choice(phrase_groups)
                 insert = random.choice(insert_group)
                 
-                if random.random() > 0.5:
-                    generated.append(f"{base}, btw {insert}.")
-                else:
+                # Different mixing strategies
+                strategy = random.choice(['prefix', 'suffix', 'middle'])
+                if strategy == 'prefix':
                     generated.append(f"{insert}. {base}")
+                elif strategy == 'suffix':
+                    generated.append(f"{base}. {insert}")
+                else:
+                    words = base.split()
+                    mid = len(words) // 2
+                    generated.append(f"{' '.join(words[:mid])} {insert} {' '.join(words[mid:])}")
+                    
             except Exception as e:
                 logger.warning(f"Error generating hard example: {e}")
                 continue
         
         return generated
+    
+    def add_typos(self, text: str, typo_rate: float = 0.1) -> str:
+        """Add realistic typos to text"""
+        
+        words = text.split()
+        new_words = []
+        
+        for word in words:
+            if random.random() < typo_rate and len(word) > 3:
+                # Random typo strategies
+                strategy = random.choice(['swap', 'delete', 'duplicate', 'replace'])
+                word_list = list(word)
+                
+                if strategy == 'swap' and len(word_list) > 1:
+                    i = random.randint(0, len(word_list) - 2)
+                    word_list[i], word_list[i+1] = word_list[i+1], word_list[i]
+                elif strategy == 'delete' and len(word_list) > 2:
+                    i = random.randint(1, len(word_list) - 1)
+                    word_list.pop(i)
+                elif strategy == 'duplicate':
+                    i = random.randint(0, len(word_list) - 1)
+                    word_list.insert(i, word_list[i])
+                elif strategy == 'replace':
+                    i = random.randint(0, len(word_list) - 1)
+                    neighbors = 'qwertyuiopasdfghjklzxcvbnm'
+                    word_list[i] = random.choice(neighbors)
+                
+                word = ''.join(word_list)
+            
+            new_words.append(word)
+        
+        return ' '.join(new_words)
     
     def synonym_replacement(self, text: str, n: int = 1) -> str:
         """Replace words with synonyms using WordNet"""
@@ -233,22 +305,131 @@ class DataAugmentor:
         except Exception as e:
             logger.warning(f"Synonym replacement error: {e}")
             return str(text) if text else ""
+    
+    def balance_dataset(
+        self,
+        messages: List[str],
+        labels: List[str],
+        target_ratio: float = 1.0
+    ) -> Tuple[List[str], List[str]]:
+        """
+        Balance dataset by oversampling minority class
+        
+        Args:
+            messages: List of message texts
+            labels: List of labels
+            target_ratio: Target spam/ham ratio (1.0 = equal)
+        
+        Returns:
+            balanced_messages, balanced_labels
+        """
+        
+        # Count distribution
+        label_counts = Counter(labels)
+        ham_count = label_counts.get('ham', 0)
+        spam_count = label_counts.get('spam', 0)
+        
+        logger.info(f"Original distribution: Ham={ham_count}, Spam={spam_count}")
+        
+        # Determine minority class
+        if ham_count == 0 or spam_count == 0:
+            logger.warning("One class has 0 samples, cannot balance")
+            return messages, labels
+        
+        # Calculate target counts
+        if spam_count < ham_count:
+            # Spam is minority
+            target_spam = int(ham_count * target_ratio)
+            needed = target_spam - spam_count
+            minority_class = 'spam'
+        else:
+            # Ham is minority
+            target_ham = int(spam_count / target_ratio)
+            needed = target_ham - ham_count
+            minority_class = 'ham'
+        
+        if needed <= 0:
+            logger.info("Dataset already balanced")
+            return messages, labels
+        
+        logger.info(f"Need to generate {needed} additional {minority_class} samples")
+        
+        # Collect minority samples
+        minority_samples = [msg for msg, label in zip(messages, labels) if label == minority_class]
+        
+        augmented_messages = []
+        augmented_labels = []
+        
+        if minority_class == 'spam':
+            # Generate synthetic spam
+            synthetic_count = min(needed // 3, 1000)
+            synthetic_spam = self.generate_synthetic_spam(synthetic_count)
+            augmented_messages.extend(synthetic_spam)
+            augmented_labels.extend(['spam'] * len(synthetic_spam))
+            needed -= len(synthetic_spam)
+            logger.info(f"Generated {len(synthetic_spam)} synthetic spam messages")
+            
+            # Generate hard examples
+            if needed > 0:
+                hard_count = min(needed // 2, len(minority_samples) * 2)
+                hard_spam = self.generate_hard_examples(
+                    minority_samples, self.spam_phrase_groups, hard_count
+                )
+                augmented_messages.extend(hard_spam)
+                augmented_labels.extend(['spam'] * len(hard_spam))
+                needed -= len(hard_spam)
+                logger.info(f"Generated {len(hard_spam)} hard spam examples")
+        
+        # Synonym replacement and typos for remaining
+        if needed > 0:
+            attempts = 0
+            max_attempts = needed * 3
+            
+            while len(augmented_messages) < needed and attempts < max_attempts:
+                original = random.choice(minority_samples)
+                
+                # Apply augmentation
+                aug_strategy = random.choice(['synonym', 'typo', 'both'])
+                
+                if aug_strategy == 'synonym':
+                    augmented = self.synonym_replacement(original, n=2)
+                elif aug_strategy == 'typo':
+                    augmented = self.add_typos(original, typo_rate=0.15)
+                else:
+                    augmented = self.synonym_replacement(original, n=1)
+                    augmented = self.add_typos(augmented, typo_rate=0.1)
+                
+                # Check if different enough
+                if augmented != original and len(augmented.strip()) > 5:
+                    augmented_messages.append(augmented)
+                    augmented_labels.append(minority_class)
+                
+                attempts += 1
+            
+            logger.info(f"Generated {len(augmented_messages)} augmented {minority_class} samples")
+        
+        return augmented_messages, augmented_labels
         
     def augment_dataset(
         self,
         messages: List[str],
         labels: List[str],
         aug_ratio: float = 0.2,
-        alpha: float = 0.3
+        alpha: float = 0.3,
+        balance: bool = True,
+        target_ratio: float = 0.8,
+        output_path: str = None
     ) -> Tuple[List[str], List[str]]:
         """
-        Complete data augmentation pipeline
+        Complete data augmentation pipeline with smart balancing
         
         Args:
             messages: List of message texts
             labels: List of labels ('ham'/'spam')
             aug_ratio: Ratio for synonym replacement
             alpha: Ratio for hard example generation
+            balance: Whether to balance the dataset
+            target_ratio: Target spam/ham ratio (0.8 = spam:ham = 4:5)
         
         Returns:
             augmented_messages, augmented_labels
@@ -268,28 +449,23 @@ class DataAugmentor:
         messages = clean_messages
         
         # Count distribution
-        ham_count = labels.count('ham')
-        spam_count = labels.count('spam')
+        label_counts = Counter(labels)
+        ham_count = label_counts.get('ham', 0)
+        spam_count = label_counts.get('spam', 0)
         
-        logger.info(f"Original dataset: Ham={ham_count}, Spam={spam_count}")
+        logger.info(f"Original dataset: Ham={ham_count}, Spam={spam_count}, Ratio={spam_count/(ham_count+1):.2f}")
         
-        # 1. Hard Ham Generation
-        if ham_count >= spam_count:
-            ham_messages = [msg for msg, label in zip(messages, labels) if label == 'ham']
-            n_hard_ham = int((ham_count - spam_count) * alpha)
+        # Step 1: Balance dataset if requested
+        if balance:
+            logger.info("Balancing dataset...")
+            bal_messages, bal_labels = self.balance_dataset(messages, labels, target_ratio)
+            augmented_messages.extend(bal_messages)
+            augmented_labels.extend(bal_labels)
             
-            if n_hard_ham > 0 and ham_messages:
-                logger.info(f"Generating {n_hard_ham} hard ham examples...")
-                hard_ham = self.generate_hard_examples(
-                    ham_messages, self.ham_phrase_groups, n_hard_ham
-                )
-                
-                if hard_ham:
-                    augmented_messages.extend(hard_ham)
-                    augmented_labels.extend(['ham'] * len(hard_ham))
-                    logger.info(f"Generated {len(hard_ham)} hard ham examples")
+            new_counts = Counter(augmented_labels)
+            logger.info(f"After balancing: Ham={new_counts.get('ham', 0)}, Spam={new_counts.get('spam', 0)}")
         
-        # 2. Synonym Replacement
+        # Step 2: Additional synonym augmentation
         max_aug_syn = int(len(messages) * aug_ratio)
         logger.info(f"Generating up to {max_aug_syn} synonym replacements...")
         
@@ -320,28 +496,44 @@ class DataAugmentor:
                     continue
         
         logger.info(f"Generated {syn_count} synonym replacement examples")
+        
+        final_counts = Counter(augmented_labels)
+        logger.info(f"Final augmented dataset: Ham={final_counts.get('ham', 0)}, Spam={final_counts.get('spam', 0)}")
         logger.info(f"Total augmented: {len(augmented_messages)} examples")
         
+        # Save augmented dataset
+        if output_path is None:
+            output_path = self.data_dir / "augmented_dataset.csv"
+        
+        df = pd.DataFrame({
+            'message': augmented_messages,
+            'label': augmented_labels
+        })
+        
+        df.to_csv(output_path, index=False, encoding='utf-8')
+        logger.info(f"Saved augmented dataset to {output_path}")
+        
         return augmented_messages, augmented_labels
-    
-    # Save augmented dataset
-    
-    
+
 
 def main():
     """Example usage"""
     
-    # Example data
+    # Example data with imbalance
     messages = [
         "Hello, how are you?",
-        "Win free iPhone now!",
         "Meeting at 3pm tomorrow",
+        "Thanks for the update",
+        "Can we reschedule?",
+        "Win free iPhone now!",
         "Click here for $1000 prize"
     ]
-    labels = ['ham', 'spam', 'ham', 'spam']
+    labels = ['ham', 'ham', 'ham', 'ham', 'spam', 'spam']
     
-    augmentor = DataAugmentor()
-    aug_messages, aug_labels = augmentor.augment_dataset(messages, labels)
+    augmentor = DataAugmentor(data_dir="data")
+    aug_messages, aug_labels = augmentor.augment_dataset(
+        messages, labels, balance=True, target_ratio=0.8
+    )
     
     logger.info(f"Original: {len(messages)} samples")
     logger.info(f"Augmented: {len(aug_messages)} samples")

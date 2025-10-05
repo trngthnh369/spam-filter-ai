@@ -51,6 +51,11 @@ class ModelService:
             with open(settings.METADATA_PATH, 'r', encoding='utf-8') as f:
                 self.train_metadata = json.load(f)
                 
+            # Load class weights
+            logger.info(f"Loading class weights from: {settings.CLASS_WEIGHTS_PATH}")
+            with open(settings.CLASS_WEIGHTS_PATH, 'r', encoding='utf-8') as f:
+                self.class_weights = json.load(f)
+            
             # Load config
             logger.info(f"Loading model config from: {settings.CONFIG_PATH}")
             with open(settings.CONFIG_PATH, 'r', encoding='utf-8') as f:

@@ -64,7 +64,7 @@ def run_complete_pipeline(
     # Step 2: Data augmentation
     if use_augmentation:
         logger.info("\n[STEP 2] Augmenting data...")
-        augmentor = DataAugmentor()
+        augmentor = DataAugmentor(data_dir="data")
         
         aug_messages, aug_labels = augmentor.augment_dataset(
             all_messages, all_labels,

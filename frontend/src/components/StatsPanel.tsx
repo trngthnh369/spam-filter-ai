@@ -147,13 +147,13 @@ export function StatsPanel() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Ham</span>
                 <span className="font-medium text-gray-900">
-                  {stats.class_weights.ham.toFixed(3)}
+                {stats?.class_weights?.ham?.toFixed(3) ?? 'N/A'}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Spam</span>
                 <span className="font-medium text-gray-900">
-                  {stats.class_weights.spam.toFixed(3)}
+                {stats?.class_weights?.spam?.toFixed(3) ?? 'N/A'}
                 </span>
               </div>
             </div>

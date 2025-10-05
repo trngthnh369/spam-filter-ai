@@ -46,11 +46,21 @@ class DataLoader:
         """Load Vietnamese spam dataset from Kaggle"""
         logger.info(f"Loading Vietnamese dataset from Kaggle: {dataset_name}")
         
-        df = kagglehub.load_dataset(
-            KaggleDatasetAdapter.PANDAS,
-            dataset_name,
-            "vi_dataset.csv"
-        )
+        output_path = self.data_dir / "vi_dataset.csv"
+        
+        # Download if not exists
+        if not output_path.exists():
+            df = kagglehub.load_dataset(
+                KaggleDatasetAdapter.PANDAS,
+                dataset_name,
+                "vi_dataset.csv"
+            )
+            # Save to data directory
+            df.to_csv(output_path, index=False, encoding='utf-8')
+            logger.info(f"Saved Vietnamese dataset to {output_path}")
+        else:
+            df = pd.read_csv(output_path)
+            logger.info(f"Loaded Vietnamese dataset from local cache: {output_path}")
         
         logger.info(f"Loaded {len(df)} Vietnamese samples")
         logger.info(f"Columns: {list(df.columns)}")
