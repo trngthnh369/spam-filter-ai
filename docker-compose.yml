@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   backend:
@@ -9,13 +9,18 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
-      - ./artifacts:/app/artifacts
-      - ./data:/app/data
+      - ./artifacts:/app/artifacts:ro # Mount artifacts as read-only
+      - ./data:/app/data:ro # Mount data as read-only
+      - backend-logs:/app/logs # Persist logs
     environment:
       - PYTHONUNBUFFERED=1
       - MODEL_NAME=intfloat/multilingual-e5-base
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:8000
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:8000,http://127.0.0.1:3000
+      - FAISS_INDEX_PATH=/app/artifacts/faiss_index.bin
+      - METADATA_PATH=/app/artifacts/train_metadata.json
+      - CLASS_WEIGHTS_PATH=/app/artifacts/class_weights.json
+      - CONFIG_PATH=/app/artifacts/model_config.json
+      - LOG_LEVEL=INFO
     restart: unless-stopped
     networks:
       - spam-filter-network
@@ -30,26 +35,39 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8000
     container_name: spam-filter-frontend
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NODE_ENV=production
     depends_on:
       backend:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - spam-filter-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 networks:
   spam-filter-network:
     driver: bridge
 
 volumes:
-  artifacts:
-  data:
+  backend-logs:
+    driver: local

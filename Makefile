@@ -22,7 +22,7 @@ install:
 
 setup:
 	@echo "Setting up project structure..."
-	mkdir -p data artifacts notebooks/outputs
+	bash scripts/setup.sh
 	@echo "✓ Setup complete"
 
 train:
@@ -32,10 +32,7 @@ train:
 
 deploy:
 	@echo "Deploying with Docker..."
-	docker-compose up -d --build
-	@echo "✓ Deployment complete"
-	@echo "Backend: http://localhost:8000"
-	@echo "Frontend: http://localhost:3000"
+	bash scripts/deploy.sh
 
 test:
 	@echo "Running backend tests..."
@@ -43,6 +40,10 @@ test:
 	@echo "Running frontend tests..."
 	cd frontend && npm test
 	@echo "✓ Tests complete"
+
+quick-test:
+	@echo "Running quick API tests..."
+	bash scripts/quick_test.sh
 
 clean:
 	@echo "Cleaning temporary files..."

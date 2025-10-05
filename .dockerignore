@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+*.egg-info
+
+# Node
+node_modules/
+.next/
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Documentation
+*.md
+!README.md
+
+# Notebooks
+notebooks/
+
+# Local env files
+.env.local
+.env.*.local
+
+# Test files
+tests/
+*.test.*
+*.spec.*
+
+# Logs
+*.log
+logs/

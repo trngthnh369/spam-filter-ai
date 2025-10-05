@@ -29,3 +29,14 @@ coverage.xml
 !README.md
 tests/
 notebooks/
+
+# Keep these directories but exclude their contents initially
+# They will be mounted as volumes
+data/*
+artifacts/*
+logs/*
+
+# Keep placeholder files
+!data/.gitkeep
+!artifacts/.gitkeep
+!logs/.gitkeep

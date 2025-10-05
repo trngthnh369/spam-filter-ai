@@ -9,20 +9,24 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
+# Copy requirements first for better caching
 COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Download NLTK data
-RUN python -c "import nltk; nltk.download('wordnet'); nltk.download('omw-1.4')"
+RUN python -c "import nltk; nltk.download('wordnet', quiet=True); nltk.download('omw-1.4', quiet=True)"
 
 # Copy application code
 COPY . .
 
-# Create artifacts directory
-RUN mkdir -p artifacts data
+# Create necessary directories
+RUN mkdir -p artifacts data logs
+
+# The artifacts directory should be mounted as a volume from host
+# This ensures trained models persist and are shared between containers
+VOLUME ["/app/artifacts"]
 
 # Expose port
 EXPOSE 8000
@@ -31,5 +35,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
-# Run application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run application with proper host binding
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

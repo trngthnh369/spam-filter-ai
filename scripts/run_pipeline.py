@@ -21,6 +21,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Get project root directory (parent of scripts/)
+PROJECT_ROOT = Path(__file__).parent.parent
+ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
+DATA_DIR = PROJECT_ROOT / "data"
+
 
 def run_complete_pipeline(
     use_augmentation: bool = True,
@@ -36,7 +41,7 @@ def run_complete_pipeline(
     
     # Step 1: Load data
     logger.info("\n[STEP 1] Loading datasets...")
-    loader = DataLoader(data_dir="data")
+    loader = DataLoader(data_dir=str(DATA_DIR))
     
     try:
         df_english = loader.load_english_data()
@@ -64,7 +69,7 @@ def run_complete_pipeline(
     # Step 2: Data augmentation
     if use_augmentation:
         logger.info("\n[STEP 2] Augmenting data...")
-        augmentor = DataAugmentor(data_dir="data")
+        augmentor = DataAugmentor(data_dir=str(DATA_DIR))
         
         aug_messages, aug_labels = augmentor.augment_dataset(
             all_messages, all_labels,
@@ -83,7 +88,7 @@ def run_complete_pipeline(
     
     # Step 3: Train model
     logger.info("\n[STEP 3] Training model...")
-    trainer = ModelTrainer(output_dir="artifacts")
+    trainer = ModelTrainer(output_dir=str(ARTIFACTS_DIR))
     config = trainer.train(all_messages, all_labels, test_size=test_size)
     
     # Step 4: Summary
@@ -94,7 +99,7 @@ def run_complete_pipeline(
     logger.info(f"Train samples: {config['train_samples']}")
     logger.info(f"Test samples: {config['test_samples']}")
     logger.info(f"Best alpha: {config['best_alpha']:.2f}")
-    logger.info(f"Artifacts saved to: artifacts/")
+    logger.info(f"Artifacts saved to: {ARTIFACTS_DIR}/")
     logger.info("="*60)
     
     return config

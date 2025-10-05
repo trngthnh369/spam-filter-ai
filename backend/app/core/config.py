@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     ]
     
     # Model paths
-    ARTIFACTS_PATH: str = str(PROJECT_ROOT / "scripts" / "artifacts")
+    ARTIFACTS_PATH: str = str(PROJECT_ROOT / "artifacts")
     MODEL_NAME: str = "intfloat/multilingual-e5-base"
     FAISS_INDEX_PATH: str = str(Path(ARTIFACTS_PATH) / "faiss_index.bin")
     METADATA_PATH: str = str(Path(ARTIFACTS_PATH) / "train_metadata.json")

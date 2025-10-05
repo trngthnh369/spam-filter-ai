@@ -3,9 +3,11 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   output: 'standalone',
+  
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
   },
+  
   async rewrites() {
     return [
       {
@@ -13,6 +15,11 @@ const nextConfig = {
         destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/:path*`,
       },
     ]
+  },
+  
+  // Disable image optimization in Docker (use default loader)
+  images: {
+    unoptimized: true,
   },
 }
 

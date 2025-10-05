@@ -137,3 +137,13 @@ site/
 !logs/.gitkeep
 
 .github/
+
+# Model artifacts and data
+artifacts/
+data/
+models/
+*.h5
+*.pkl
+*.pt
+*.pth
+*.onnx
