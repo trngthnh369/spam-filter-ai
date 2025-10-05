@@ -7,6 +7,8 @@
 
 An enterprise-grade AI-powered spam detection system with explainability features, supporting English and Vietnamese languages. Built with multilingual E5 embeddings, FAISS vector search, and weighted KNN classification.
 
+![Spam Filter AI Demo](https://via.placeholder.com/800x400?text=Spam+Filter+AI+Dashboard)
+
 ---
 
 ## 📋 Table of Contents
@@ -32,15 +34,15 @@ An enterprise-grade AI-powered spam detection system with explainability feature
 
 ## 🎯 Overview
 
-Spam Filter AI is a production-ready spam detection system that combines state-of-the-art natural language processing with explainable AI techniques. The system achieves 95-98% accuracy while providing transparent, token-level explanations for each prediction.
+Spam Filter AI is a production-ready spam detection system that combines state-of-the-art natural language processing with explainable AI techniques. The system achieves **95-98% accuracy** while providing transparent, token-level explanations for each prediction.
 
 ### Why This Project?
 
-- **Multilingual Support**: Seamlessly handles both English and Vietnamese text
-- **Explainable Predictions**: See exactly which words influenced the classification
-- **Production Ready**: Complete with Docker deployment, API documentation, and monitoring
-- **High Performance**: Sub-50ms inference time with 95%+ accuracy
-- **Spam Subcategorization**: Automatically categorizes spam into meaningful types
+- **🌍 Multilingual Support**: Seamlessly handles both English and Vietnamese text
+- **🔍 Explainable Predictions**: See exactly which words influenced the classification
+- **🚀 Production Ready**: Complete with Docker deployment, API documentation, and monitoring
+- **⚡ High Performance**: Sub-50ms inference time with 95%+ accuracy
+- **🏷️ Spam Subcategorization**: Automatically categorizes spam into meaningful types
 
 ---
 
@@ -148,17 +150,22 @@ Ensure you have the following installed:
 ### One-Command Setup
 
 ```bash
-# Clone and setup
+# Clone repository
 git clone https://github.com/trngthnh369/spam-filter-ai.git
 cd spam-filter-ai
-bash scripts/setup.sh
 
-# Train model
-cd backend && source venv/bin/activate
-cd ../scripts && python run_pipeline.py
+# Create venv
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Train the model
+cd scripts
+python run_pipeline.py
 
 # Deploy with Docker
-cd .. && bash scripts/deploy.sh
+cd ..
+docker-compose up -d
 ```
 
 **Services will be available at:**
@@ -177,36 +184,35 @@ git clone https://github.com/trngthnh369/spam-filter-ai.git
 cd spam-filter-ai
 ```
 
-### Step 2: Automated Setup
+### Step 2: Backend Setup
 
 ```bash
-bash scripts/setup.sh
-```
-
-This script will:
-- ✓ Verify Python and Node.js installations
-- ✓ Create project directory structure
-- ✓ Generate environment configuration files
-- ✓ Install Python dependencies
-- ✓ Install Node.js dependencies
-- ✓ Download NLTK data
-
-### Step 3: Manual Setup (Alternative)
-
-If the automated script fails, follow these steps:
-
-**Backend Setup:**
-```bash
-cd backend
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-**Frontend Setup:**
+### Step 3: Frontend Setup
+
 ```bash
 cd frontend
 npm install
+```
+
+### Step 4: Environment Configuration
+
+**Backend (.env):**
+```bash
+cd backend
+cp .env.example .env
+# Edit .env with your settings
+```
+
+**Frontend (.env.local):**
+```bash
+cd frontend
+cp .env.local.example .env.local
+# Edit .env.local with your settings
 ```
 
 ---
@@ -216,8 +222,7 @@ npm install
 ### Quick Training
 
 ```bash
-cd backend && source venv/bin/activate
-cd ../scripts
+cd scripts
 python run_pipeline.py
 ```
 
@@ -288,28 +293,20 @@ python run_pipeline.py --aug-ratio 0.3
 
 ```bash
 # 1. Train the model
-make train
+cd scripts
+python run_pipeline.py
 
 # 2. Deploy services
-make deploy
-
-# Or use the deployment script
-bash scripts/deploy.sh
+cd ..
+docker-compose up -d
 ```
-
-The deployment script will:
-- ✓ Validate Docker installation
-- ✓ Check for required artifacts
-- ✓ Build Docker images
-- ✓ Start services
-- ✓ Run health checks
 
 ### Manual Deployment (Development)
 
 **Backend:**
 ```bash
-cd backend
 source venv/bin/activate
+cd backend
 uvicorn main:app --reload --port 8000
 ```
 
@@ -410,14 +407,6 @@ POST /api/v1/classify/batch
 POST /api/v1/explain
 ```
 
-**Request:**
-```json
-{
-  "message": "Congratulations! You won $1000",
-  "k": 10
-}
-```
-
 #### 4. Statistics
 
 ```bash
@@ -436,7 +425,7 @@ GET /api/v1/health
 
 ### English Dataset
 
-- **Source**: Google Drive (ID: `1N7rk-kfnDFIGMeX0ROVTjKh71gcgx-7R`)
+- **Source**: Google Drive
 - **Format**: CSV with Message and Category columns
 - **Size**: ~5,500 samples
 - **Labels**: ham, spam
@@ -468,7 +457,7 @@ GET /api/v1/health
 
 ### Backend Configuration
 
-Edit `backend/.env` or use environment variables:
+Edit `backend/.env`:
 
 ```bash
 # Model Settings
@@ -481,10 +470,6 @@ MAX_SEQUENCE_LENGTH=512
 CORS_ORIGINS=http://localhost:3000,http://localhost:8000
 MAX_MESSAGE_LENGTH=10000
 RATE_LIMIT=100
-
-# Paths
-FAISS_INDEX_PATH=artifacts/faiss_index.bin
-METADATA_PATH=artifacts/train_metadata.json
 ```
 
 ### Frontend Configuration
@@ -528,21 +513,6 @@ spam-filter-ai/
 └── data/                # Dataset storage (generated)
 ```
 
-### Code Style
-
-```bash
-# Backend
-cd backend
-black app/
-flake8 app/
-mypy app/
-
-# Frontend
-cd frontend
-npm run lint
-npm run format
-```
-
 ---
 
 ## 🧪 Testing
@@ -557,18 +527,11 @@ pytest tests/ -v
 pytest tests/ --cov=app --cov-report=html
 ```
 
-### API Integration Tests
-
-```bash
-bash scripts/quick_test.sh
-```
-
 ### Frontend Tests
 
 ```bash
 cd frontend
 npm test
-npm run test:e2e
 ```
 
 ---
@@ -585,30 +548,17 @@ Error: artifacts directory not found
 
 **Solution:** Train the model first:
 ```bash
-cd backend && source venv/bin/activate
-cd ../scripts && python run_pipeline.py
+cd scripts
+python run_pipeline.py
 ```
 
 **2. Docker build fails**
-
-```
-Error: Cannot connect to Docker daemon
-```
 
 **Solution:** Ensure Docker Desktop is running
 
 **3. Port already in use**
 
-```
-Error: Port 8000 already in use
-```
-
-**Solution:** Stop existing services:
-```bash
-docker-compose down
-# or
-lsof -ti:8000 | xargs kill
-```
+**Solution:** Stop existing services or change ports in `docker-compose.yml`
 
 **4. Frontend cannot connect to backend**
 
@@ -629,13 +579,6 @@ We welcome contributions! Please follow these steps:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-### Development Guidelines
-
-- Follow PEP 8 for Python code
-- Use ESLint/Prettier for TypeScript/JavaScript
-- Write tests for new features
-- Update documentation as needed
-
 ---
 
 ## 📄 License
@@ -655,8 +598,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/spam-filter-ai/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/spam-filter-ai/discussions)
+- **Issues**: [GitHub Issues](https://github.com/trngthnh369/spam-filter-ai/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/trngthnh369/spam-filter-ai/discussions)
 - **Email**: your.email@example.com
 
 ---
