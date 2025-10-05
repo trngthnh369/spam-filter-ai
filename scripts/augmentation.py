@@ -6,13 +6,57 @@ Includes hard example generation, synonym replacement, back-translation, and sma
 import pandas as pd
 import random
 import nltk
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Set
 import logging
 from collections import Counter
 from pathlib import Path
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def detect_language(text: str) -> str:
+    """
+    Detect if text is Vietnamese or English
+    Returns 'vi' for Vietnamese, 'en' for English
+    """
+    if not text or not isinstance(text, str):
+        return 'en'
+    
+    # Vietnamese specific characters
+    vietnamese_chars = 'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ'
+    vietnamese_chars += vietnamese_chars.upper()
+    
+    # Count Vietnamese characters
+    vi_char_count = sum(1 for char in text if char in vietnamese_chars)
+    
+    # If more than 10% of characters are Vietnamese-specific, classify as Vietnamese
+    total_alpha = sum(1 for char in text if char.isalpha())
+    if total_alpha > 0 and (vi_char_count / total_alpha) > 0.1:
+        return 'vi'
+    
+    return 'en'
+
+
+def compute_text_similarity(text1: str, text2: str) -> float:
+    """
+    Compute simple similarity between two texts based on word overlap
+    Returns similarity score between 0 and 1
+    """
+    if not text1 or not text2:
+        return 0.0
+    
+    words1 = set(text1.lower().split())
+    words2 = set(text2.lower().split())
+    
+    if not words1 or not words2:
+        return 0.0
+    
+    intersection = len(words1.intersection(words2))
+    union = len(words1.union(words2))
+    
+    return intersection / union if union > 0 else 0.0
 
 # Download NLTK data
 try:
@@ -255,7 +299,7 @@ class DataAugmentor:
         return ' '.join(new_words)
     
     def synonym_replacement(self, text: str, n: int = 1) -> str:
-        """Replace words with synonyms using WordNet"""
+        """Replace words with synonyms using WordNet (English only)"""
         
         if not WORDNET_AVAILABLE:
             return text
@@ -267,6 +311,10 @@ class DataAugmentor:
                 text = str(text)
             
             if not text or not text.strip():
+                return text
+            
+            # Only apply synonym replacement to English text
+            if detect_language(text) != 'en':
                 return text
             
             words = text.split()
@@ -305,6 +353,57 @@ class DataAugmentor:
         except Exception as e:
             logger.warning(f"Synonym replacement error: {e}")
             return str(text) if text else ""
+    
+    def remove_similar_messages(
+        self,
+        messages: List[str],
+        labels: List[str],
+        similarity_threshold: float = 0.85
+    ) -> Tuple[List[str], List[str]]:
+        """
+        Remove duplicate and highly similar messages
+        
+        Args:
+            messages: List of message texts
+            labels: List of labels
+            similarity_threshold: Threshold for similarity (0-1)
+        
+        Returns:
+            filtered_messages, filtered_labels
+        """
+        
+        logger.info(f"Removing similar messages (threshold: {similarity_threshold})...")
+        
+        filtered_messages = []
+        filtered_labels = []
+        seen_messages = set()
+        
+        for msg, label in zip(messages, labels):
+            # Normalize message for comparison
+            normalized_msg = msg.lower().strip()
+            
+            # Skip exact duplicates
+            if normalized_msg in seen_messages:
+                continue
+            
+            # Check similarity with existing messages
+            is_similar = False
+            for existing_msg in filtered_messages:
+                similarity = compute_text_similarity(msg, existing_msg)
+                if similarity >= similarity_threshold:
+                    is_similar = True
+                    break
+            
+            if not is_similar:
+                filtered_messages.append(msg)
+                filtered_labels.append(label)
+                seen_messages.add(normalized_msg)
+        
+        removed_count = len(messages) - len(filtered_messages)
+        logger.info(f"Removed {removed_count} similar messages ({removed_count/len(messages)*100:.1f}%)")
+        logger.info(f"Remaining: {len(filtered_messages)} unique messages")
+        
+        return filtered_messages, filtered_labels
     
     def balance_dataset(
         self,
@@ -380,33 +479,42 @@ class DataAugmentor:
                 needed -= len(hard_spam)
                 logger.info(f"Generated {len(hard_spam)} hard spam examples")
         
-        # Synonym replacement and typos for remaining
+        # Synonym replacement and typos for remaining (language-aware)
         if needed > 0:
             attempts = 0
             max_attempts = needed * 3
             
             while len(augmented_messages) < needed and attempts < max_attempts:
                 original = random.choice(minority_samples)
+                lang = detect_language(original)
                 
-                # Apply augmentation
-                aug_strategy = random.choice(['synonym', 'typo', 'both'])
-                
-                if aug_strategy == 'synonym':
-                    augmented = self.synonym_replacement(original, n=2)
-                elif aug_strategy == 'typo':
-                    augmented = self.add_typos(original, typo_rate=0.15)
+                # Apply augmentation based on language
+                if lang == 'en':
+                    # For English: can use synonym replacement
+                    aug_strategy = random.choice(['synonym', 'typo', 'both'])
+                    
+                    if aug_strategy == 'synonym':
+                        augmented = self.synonym_replacement(original, n=2)
+                    elif aug_strategy == 'typo':
+                        augmented = self.add_typos(original, typo_rate=0.15)
+                    else:
+                        augmented = self.synonym_replacement(original, n=1)
+                        augmented = self.add_typos(augmented, typo_rate=0.1)
                 else:
-                    augmented = self.synonym_replacement(original, n=1)
-                    augmented = self.add_typos(augmented, typo_rate=0.1)
+                    # For Vietnamese: only use typos (no synonym replacement)
+                    augmented = self.add_typos(original, typo_rate=0.15)
                 
-                # Check if different enough
-                if augmented != original and len(augmented.strip()) > 5:
+                # Check if different enough and not too similar to original
+                similarity = compute_text_similarity(augmented, original)
+                if (augmented != original and 
+                    len(augmented.strip()) > 5 and 
+                    similarity < 0.95):  # Not too similar to original
                     augmented_messages.append(augmented)
                     augmented_labels.append(minority_class)
                 
                 attempts += 1
             
-            logger.info(f"Generated {len(augmented_messages)} augmented {minority_class} samples")
+            logger.info(f"Generated {len(augmented_messages)} language-aware augmented {minority_class} samples")
         
         return augmented_messages, augmented_labels
         
@@ -465,15 +573,22 @@ class DataAugmentor:
             new_counts = Counter(augmented_labels)
             logger.info(f"After balancing: Ham={new_counts.get('ham', 0)}, Spam={new_counts.get('spam', 0)}")
         
-        # Step 2: Additional synonym augmentation
+        # Step 2: Additional language-aware augmentation
         max_aug_syn = int(len(messages) * aug_ratio)
-        logger.info(f"Generating up to {max_aug_syn} synonym replacements...")
+        logger.info(f"Generating up to {max_aug_syn} language-aware augmentations...")
+        
+        # Separate messages by language
+        en_samples = [(msg, label) for msg, label in zip(messages, labels) if detect_language(msg) == 'en']
+        vi_samples = [(msg, label) for msg, label in zip(messages, labels) if detect_language(msg) == 'vi']
+        
+        logger.info(f"Language distribution: English={len(en_samples)}, Vietnamese={len(vi_samples)}")
         
         syn_count = 0
         attempts = 0
         max_attempts = len(messages) * 2
         
-        for msg, label in zip(messages, labels):
+        # Augment English messages
+        for msg, label in en_samples:
             if syn_count >= max_aug_syn or attempts >= max_attempts:
                 break
             
@@ -483,9 +598,11 @@ class DataAugmentor:
                 try:
                     aug_msg = self.synonym_replacement(msg, n=1)
                     
+                    similarity = compute_text_similarity(aug_msg, msg)
                     if (aug_msg != msg and
                         len(aug_msg.strip()) > 0 and
-                        len(aug_msg.split()) >= 2):
+                        len(aug_msg.split()) >= 2 and
+                        similarity < 0.95):
                         
                         augmented_messages.append(aug_msg)
                         augmented_labels.append(label)
@@ -495,7 +612,38 @@ class DataAugmentor:
                     logger.warning(f"Synonym replacement error: {e}")
                     continue
         
-        logger.info(f"Generated {syn_count} synonym replacement examples")
+        # Augment Vietnamese messages (typos only)
+        for msg, label in vi_samples:
+            if syn_count >= max_aug_syn or attempts >= max_attempts:
+                break
+            
+            attempts += 1
+            
+            if random.random() > 0.8:  # 20% chance
+                try:
+                    aug_msg = self.add_typos(msg, typo_rate=0.15)
+                    
+                    similarity = compute_text_similarity(aug_msg, msg)
+                    if (aug_msg != msg and
+                        len(aug_msg.strip()) > 0 and
+                        len(aug_msg.split()) >= 2 and
+                        similarity < 0.95):
+                        
+                        augmented_messages.append(aug_msg)
+                        augmented_labels.append(label)
+                        syn_count += 1
+                        
+                except Exception as e:
+                    logger.warning(f"Typo augmentation error: {e}")
+                    continue
+        
+        logger.info(f"Generated {syn_count} language-aware augmentation examples")
+        
+        # Step 3: Remove similar messages
+        logger.info("Removing similar messages...")
+        augmented_messages, augmented_labels = self.remove_similar_messages(
+            augmented_messages, augmented_labels, similarity_threshold=0.85
+        )
         
         final_counts = Counter(augmented_labels)
         logger.info(f"Final augmented dataset: Ham={final_counts.get('ham', 0)}, Spam={final_counts.get('spam', 0)}")
